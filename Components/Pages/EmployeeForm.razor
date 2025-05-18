@@ -1,9 +1,11 @@
 ﻿@page "/employee-form"
 @rendermode InteractiveServer
 @using AegisLabs_Employee_ExcelToPdfApp.Models
+@using AegisLabs_Employee_ExcelToPdfApp.Services.Interfaces
 @inject NavigationManager NavigationManager
 @inject IHttpClientFactory ClientFactory
 @inject IJSRuntime JSRuntime
+@inject IEmployeeService EmployeeService
 
 <PageTitle>Employee Form</PageTitle>
 
@@ -79,30 +81,34 @@
         <button class="btn btn-primary" @onclick="GenerateExcel">Download Excel</button>
         <button class="btn btn-secondary" @onclick="GeneratePdf">Download PDF</button>
     </div>
-
 }
 
 @code {
     private Employee employee = new();
     private List<Employee> employees = new();
-    private HttpClient Http => ClientFactory.CreateClient("ServerAPI");
 
-    private void HandleValidSubmit()
+    protected override async Task OnInitializedAsync()
     {
-        employees.Add(new Employee
-            {
-                Name = employee.Name,
-                Email = employee.Email,
-                Phone = employee.Phone,
-                Address = employee.Address
-            });
-
-        employee = new Employee();
+        employees = await EmployeeService.GetAllAsync();
     }
 
-    private void RemoveEmployee(Employee emp)
+    private async Task HandleValidSubmit()
     {
-        employees.Remove(emp);
+        if (employee is null)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Employee can't be empty");
+            return;
+
+        }
+        await EmployeeService.AddAsync(employee);
+        employee = new Employee();
+        employees = await EmployeeService.GetAllAsync();
+    }
+
+    private async Task RemoveEmployee(Employee emp)
+    {
+        await EmployeeService.DeleteAsync(emp.Id);
+        employees = await EmployeeService.GetAllAsync();
     }
 
     private async Task GenerateExcel()
@@ -113,20 +119,7 @@
             return;
         }
 
-        var client = ClientFactory.CreateClient();
-        client.BaseAddress = new Uri(NavigationManager.BaseUri);
-
-        var response = await client.PostAsJsonAsync("api/report/setdata", employees);
-
-        if (response.IsSuccessStatusCode)
-        {
-            await JSRuntime.InvokeVoidAsync("downloadFile", "/api/report/excel");
-        }
-        else
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            await JSRuntime.InvokeVoidAsync("alert", $"Failed: {response.StatusCode}\n{error}");
-        }
+        await JSRuntime.InvokeVoidAsync("downloadFile", "/api/report/excel");
     }
 
     private async Task GeneratePdf()
@@ -137,19 +130,6 @@
             return;
         }
 
-        var client = ClientFactory.CreateClient();
-        client.BaseAddress = new Uri(NavigationManager.BaseUri); 
-
-        var response = await client.PostAsJsonAsync("api/report/setdata", employees);
-
-        if (response.IsSuccessStatusCode)
-        {
-            await JSRuntime.InvokeVoidAsync("downloadFile", "/api/report/pdf");
-        }
-        else
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            await JSRuntime.InvokeVoidAsync("alert", $"Failed: {response.StatusCode}\n{error}");
-        }
+        await JSRuntime.InvokeVoidAsync("downloadFile", "/api/report/pdf");
     }
 }
