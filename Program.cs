@@ -1,5 +1,8 @@
 ﻿using AegisLabs_Employee_ExcelToPdfApp.Components;
+using AegisLabs_Employee_ExcelToPdfApp.Repositories;
+using AegisLabs_Employee_ExcelToPdfApp.Repositories.Interfaces;
 using AegisLabs_Employee_ExcelToPdfApp.Services;
+using AegisLabs_Employee_ExcelToPdfApp.Services.Interfaces;
 using Rotativa.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddHttpClient();
+
+builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+
 
 builder.Services.AddHttpClient("ServerAPI", client =>
 {
