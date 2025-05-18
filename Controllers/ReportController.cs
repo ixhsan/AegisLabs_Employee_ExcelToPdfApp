@@ -1,8 +1,9 @@
 ﻿using AegisLabs_Employee_ExcelToPdfApp.Models;
-using AegisLabs_Employee_ExcelToPdfApp.Services;
+using AegisLabs_Employee_ExcelToPdfApp.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Rotativa.AspNetCore;
 using Rotativa.AspNetCore.Options;
+using System.Text.Json;
 
 namespace AegisLabs_Employee_ExcelToPdfApp.Controllers
 {
@@ -11,30 +12,22 @@ namespace AegisLabs_Employee_ExcelToPdfApp.Controllers
     public class ReportController : ControllerBase
     {
         private readonly IEmployeeService _employeeService;
-        private static List<Employee> _tempEmployees = new(); // Temporary data cache
+        private readonly IReportService _reportService;
 
-        public ReportController(IEmployeeService employeeService)
+        public ReportController(IEmployeeService employeeService, IReportService reportService)
         {
             _employeeService = employeeService;
-        }
-
-        [HttpPost("setdata")]
-        public IActionResult SetEmployees([FromBody] List<Employee> employees)
-        {
-            if (employees == null || employees.Count == 0)
-                return BadRequest("No employees provided");
-
-            _tempEmployees = employees;
-            return Ok();
+            _reportService = reportService;
         }
 
         [HttpGet("excel")]
-        public IActionResult GenerateExcel()
+        public async Task<IActionResult> GenerateExcel()
         {
-            if (_tempEmployees.Count == 0)
-                return BadRequest("No employees to generate report");
+            var employees = await _employeeService.GetAllAsync();
+            if (employees == null || employees.Count == 0)
+                return BadRequest("No employees found");
 
-            var excelData = _employeeService.GenerateExcelAsync(_tempEmployees).Result;
+            var excelData = await _reportService.GenerateExcelAsync(employees);
 
             return File(
                 excelData,
@@ -43,14 +36,15 @@ namespace AegisLabs_Employee_ExcelToPdfApp.Controllers
         }
 
         [HttpGet("pdf")]
-        public IActionResult GeneratePdf()
+        public async Task <IActionResult> GeneratePdf()
         {
-            if (_tempEmployees.Count == 0)
-                return BadRequest("No employees to generate report");
+            var employees = await _employeeService.GetAllAsync();
+            if (employees == null || employees.Count == 0)
+                return BadRequest("No employees found");
 
             try
             {
-                return new ViewAsPdf("PdfReport", _tempEmployees)
+                return new ViewAsPdf("PdfReport", employees)
                 {
                     FileName = $"Employees_{DateTime.Now:yyyyMMdd}.pdf",
                     PageOrientation = Orientation.Portrait,
