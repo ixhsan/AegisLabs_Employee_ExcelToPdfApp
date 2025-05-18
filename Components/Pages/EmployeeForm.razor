@@ -1,0 +1,155 @@
+﻿@page "/employee-form"
+@rendermode InteractiveServer
+@using AegisLabs_Employee_ExcelToPdfApp.Models
+@inject NavigationManager NavigationManager
+@inject IHttpClientFactory ClientFactory
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Employee Form</PageTitle>
+
+<h1>Employee Form</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <EditForm Model="@employee" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group mb-3">
+                <label for="Name">Name:</label>
+                <InputText id="Name" @bind-Value="employee.Name" class="form-control" />
+                <ValidationMessage For="@(() => employee.Name)" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="Email">Email:</label>
+                <InputText id="Email" @bind-Value="employee.Email" class="form-control" />
+                <ValidationMessage For="@(() => employee.Email)" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="Phone">Phone:</label>
+                <InputText id="Phone" @bind-Value="employee.Phone" class="form-control" />
+                <ValidationMessage For="@(() => employee.Phone)" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="Address">Address:</label>
+                <InputTextArea id="Address" @bind-Value="employee.Address" class="form-control" />
+                <ValidationMessage For="@(() => employee.Address)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Add Employee</button>
+        </EditForm>
+    </div>
+</div>
+
+@if (employees.Count > 0)
+{
+    <h2 class="mt-4">Employee List</h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in employees)
+                {
+                    <tr>
+                        <td>@emp.Name</td>
+                        <td>@emp.Email</td>
+                        <td>@emp.Phone</td>
+                        <td>@emp.Address</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" @onclick="() => RemoveEmployee(emp)">Remove</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-3">
+        <button class="btn btn-primary" @onclick="GenerateExcel">Download Excel</button>
+        <button class="btn btn-secondary" @onclick="GeneratePdf">Download PDF</button>
+    </div>
+
+}
+
+@code {
+    private Employee employee = new();
+    private List<Employee> employees = new();
+    private HttpClient Http => ClientFactory.CreateClient("ServerAPI");
+
+    private void HandleValidSubmit()
+    {
+        employees.Add(new Employee
+            {
+                Name = employee.Name,
+                Email = employee.Email,
+                Phone = employee.Phone,
+                Address = employee.Address
+            });
+
+        employee = new Employee();
+    }
+
+    private void RemoveEmployee(Employee emp)
+    {
+        employees.Remove(emp);
+    }
+
+    private async Task GenerateExcel()
+    {
+        if (employees.Count == 0)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "No employees to generate report");
+            return;
+        }
+
+        var client = ClientFactory.CreateClient();
+        client.BaseAddress = new Uri(NavigationManager.BaseUri);
+
+        var response = await client.PostAsJsonAsync("api/report/setdata", employees);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", "/api/report/excel");
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            await JSRuntime.InvokeVoidAsync("alert", $"Failed: {response.StatusCode}\n{error}");
+        }
+    }
+
+    private async Task GeneratePdf()
+    {
+        if (employees.Count == 0)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "No employees to generate report");
+            return;
+        }
+
+        var client = ClientFactory.CreateClient();
+        client.BaseAddress = new Uri(NavigationManager.BaseUri); 
+
+        var response = await client.PostAsJsonAsync("api/report/setdata", employees);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", "/api/report/pdf");
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            await JSRuntime.InvokeVoidAsync("alert", $"Failed: {response.StatusCode}\n{error}");
+        }
+    }
+}
