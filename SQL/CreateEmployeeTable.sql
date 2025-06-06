@@ -1,0 +1,7 @@
+CREATE TABLE Employees (
+    Id INT PRIMARY KEY IDENTITY,
+    Name NVARCHAR(100),
+    Email NVARCHAR(100),
+    Phone NVARCHAR(50),
+    Address NVARCHAR(255)
+);
